@@ -28,7 +28,11 @@ EAR_THRESHOLD = 0.15
 EAR_CONSEC_FRAMES = 4
 
 # -- Voice Commands --
-# Time in seconds to listen for a voice command before timing out.
+# The wake word to activate voice commands.
+WAKE_WORD = "monday"
+# Time in seconds to listen for a command after the wake word is detected.
+COMMAND_TIME_LIMIT = 5
+# Time in seconds to listen for the wake word.
 PHRASE_TIME_LIMIT = 5
 
 
@@ -73,7 +77,11 @@ class AccessibilityController:
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone()
         # Flag to control the voice listener.
-        self.is_listening = True
+        self.voice_enabled = True
+        # Flag to indicate if the wake word has been detected.
+        self.is_awake = False
+        # Status text for the wake word.
+        self.wake_word_status = "Sleeping"
         # Run the voice listener in a separate thread.
         self.voice_thread = threading.Thread(target=self._voice_command_listener, daemon=True)
 
@@ -100,43 +108,68 @@ class AccessibilityController:
 
     def _voice_command_listener(self):
         """
-        Listens for voice commands in a separate thread.
+        Listens for the wake word and then for a command.
         """
         while True:
-            if self.is_listening:
+            if self.voice_enabled:
                 with self.microphone as source:
                     self.recognizer.adjust_for_ambient_noise(source)
-                    try:
+                    
+                    if not self.is_awake:
+                        print("Listening for wake word...")
+                        try:
+                            audio = self.recognizer.listen(source, phrase_time_limit=PHRASE_TIME_LIMIT)
+                            phrase = self.recognizer.recognize_google(audio).lower()
+                            if WAKE_WORD in phrase:
+                                print("Wake word detected!")
+                                self.is_awake = True
+                                self.wake_word_status = "Awake"
+                        except sr.UnknownValueError:
+                            pass # Didn't hear anything
+                        except sr.RequestError as e:
+                            print(f"Could not request results; {e}")
+
+                    if self.is_awake:
                         print("Listening for a command...")
-                        audio = self.recognizer.listen(source, phrase_time_limit=PHRASE_TIME_LIMIT)
-                        command = self.recognizer.recognize_google(audio).lower()
-                        print(f"Command received: {command}")
-                        self._process_voice_command(command)
-                    except sr.UnknownValueError:
-                        pass
-                    except sr.RequestError as e:
-                        print(f"Could not request results from Google Speech Recognition service; {e}")
+                        try:
+                            audio = self.recognizer.listen(source, phrase_time_limit=COMMAND_TIME_LIMIT)
+                            command = self.recognizer.recognize_google(audio).lower()
+                            print(f"Command received: {command}")
+                            self._process_voice_command(command)
+                        except sr.UnknownValueError:
+                            print("Did not hear a command.")
+                        except sr.RequestError as e:
+                            print(f"Could not request results; {e}")
+                        finally:
+                            # Go back to sleep after trying to process a command
+                            self.is_awake = False
+                            self.wake_word_status = "Sleeping"
 
     def _process_voice_command(self, command):
         """
-        Processes the recognized voice command.
+        Processes the recognized voice command by simulating sending it to the Gemini CLI.
         """
+        # Commands are only processed if the system is "awake"
+        if not self.is_awake:
+            return
+
         if "open youtube" in command:
-            webbrowser.open("https://www.youtube.com")
+            print(f"Simulating sending command to Gemini CLI: 'open youtube'")
         elif "open google" in command:
-            webbrowser.open("https://www.google.com/search?q=google.com")
+            print(f"Simulating sending command to Gemini CLI: 'open google'")
         elif "open discord" in command:
-            # This command might need to be adjusted based on the OS and how Discord is installed.
-            # For Windows, it might be:
-            os.system("start discord")
-            # For macOS:
-            # os.system("open /Applications/Discord.app")
+            print(f"Simulating sending command to Gemini CLI: 'open discord'")
         elif "stop listening" in command:
-            self.is_listening = False
-            print("Voice recognition stopped.")
+            self.voice_enabled = False
+            self.is_awake = False # Ensure it's not stuck in the awake state
+            self.wake_word_status = "Disabled"
+            print("Voice recognition disabled.")
         elif "start listening" in command:
-            self.is_listening = True
-            print("Voice recognition started.")
+            self.voice_enabled = True
+            self.wake_word_status = "Sleeping"
+            print("Voice recognition enabled.")
+        else:
+            print(f"Simulating sending unrecognized command to Gemini CLI: '{command}'")
 
     def run(self):
         """
@@ -252,7 +285,7 @@ class AccessibilityController:
                     # Display the voice listening status.
                     cv2.putText(
                         image,
-                        f"Listening: {self.is_listening}",
+                        f"Voice: {self.wake_word_status}",
                         (10, 70),
                         cv2.FONT_HERSHEY_SIMPLEX,
                         1,
