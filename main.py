@@ -13,19 +13,19 @@ import os
 # -- Cursor Control --
 # Higher value = less sensitive. A lower value will make the cursor move more.
 # Recommended: 5-20
-SENSITIVITY = 10 
+SENSITIVITY = 5
 # Smoothing factor to reduce cursor jitter. Higher value = smoother, but more lag.
 # Recommended: 0.7-0.9
-SMOOTHING_FACTOR = 0.8  
+SMOOTHING_FACTOR = 0.7
 
 # -- Blink Detection --
 # Eye Aspect Ratio (EAR) threshold for detecting a blink. Lower value = more sensitive.
 # Recommended: 0.15-0.25
-EAR_THRESHOLD = 0.2
+EAR_THRESHOLD = 0.15
 # Number of consecutive frames the eye must be below the EAR threshold to trigger a blink.
 # Higher value = less likely to have accidental clicks.
 # Recommended: 2-4
-EAR_CONSEC_FRAMES = 3
+EAR_CONSEC_FRAMES = 4
 
 # -- Voice Commands --
 # Time in seconds to listen for a voice command before timing out.
